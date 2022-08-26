@@ -13,6 +13,7 @@ namespace Osynapsy\Ocl\Map\Leaflet;
 
 use Osynapsy\Html\Tag;
 use Osynapsy\Html\Component;
+use Osynapsy\Ocl\HiddenBox;
 
 class MapBox extends Component
 {
