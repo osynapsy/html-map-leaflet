@@ -12,10 +12,10 @@
 namespace Osynapsy\Ocl\Map\Leaflet;
 
 use Osynapsy\Html\Tag;
-use Osynapsy\Html\Component;
-use Osynapsy\Ocl\HiddenBox;
+use Osynapsy\Html\Component\AbstractComponent;
+use Osynapsy\Html\Component\InputHidden;
 
-class MapBox extends Component
+class MapBox extends AbstractComponent
 {
 	private $map;
 	private $dataGridParent = [];
@@ -23,11 +23,7 @@ class MapBox extends Component
 	public function __construct($name, $draw = true, $routing = true)
 	{
 		parent::__construct('dummy',$name);
-        $this->map = $this->add(new Tag('div'))->att([
-            'id' => $name,
-            'style' => 'width: 100%; min-height: 600px;',
-            'class' => 'osy-mapgrid osy-mapgrid-leaflet'
-        ]);
+        $this->map = $this->add($this->mapBoxFactory($name));
 		$this->requireCss('Lib/leaflet-1.3.1/leaflet.css');
 		$this->requireJs('Lib/leaflet-1.3.1/leaflet.js');
 		$this->includeAwesomeMarkersPlugin();
@@ -38,15 +34,22 @@ class MapBox extends Component
             $this->includeRoutingPlugin();
         }
         $this->requireJs('Ocl/MapLeafletBox/script.js');
-        $this->add(new HiddenBox($this->id.'_ne_lat'));
-        $this->add(new HiddenBox($this->id.'_ne_lng'));
-        $this->add(new HiddenBox($this->id.'_sw_lat'));
-        $this->add(new HiddenBox($this->id.'_sw_lng'));
-        $this->add(new HiddenBox($this->id.'_center'));
-        $this->add(new HiddenBox($this->id.'_cnt_lat'));
-        $this->add(new HiddenBox($this->id.'_cnt_lng'));
-		$this->add(new HiddenBox($this->id.'_zoom'));
+        $this->add(new InputHidden($this->id.'_ne_lat'));
+        $this->add(new InputHidden($this->id.'_ne_lng'));
+        $this->add(new InputHidden($this->id.'_sw_lat'));
+        $this->add(new InputHidden($this->id.'_sw_lng'));
+        $this->add(new InputHidden($this->id.'_center'));
+        $this->add(new InputHidden($this->id.'_cnt_lat'));
+        $this->add(new InputHidden($this->id.'_cnt_lng'));
+		$this->add(new InputHidden($this->id.'_zoom'));
 	}
+
+    protected function mapBoxFactory($id)
+    {
+        $mapBox = new Tag('div', $id, 'osy-mapgrid osy-mapgrid-leaflet');
+        $mapBox->attribute('style', 'width: 100%; min-height: 600px;');
+        return $mapBox;
+    }
 
     private function includeAwesomeMarkersPlugin()
     {
@@ -56,14 +59,14 @@ class MapBox extends Component
 
     private function includeRoutingPlugin()
     {
-        $this->map->att('data-routing-plugin', true);
+        $this->map->attribute('data-routing-plugin', true);
         $this->requireCss('Lib/leaflet-routing-machine-3.2.7/leaflet-routing-machine.css');
 		$this->requireJs('Lib/leaflet-routing-machine-3.2.7/leaflet-routing-machine.min.js');
     }
 
     private function includeDrawPlugin()
     {
-        $this->map->att('data-draw-plugin', true);
+        $this->map->attribute('data-draw-plugin', true);
         $this->requireCss('Lib/leaflet-draw-0.4.2/leaflet.draw.css');
         $this->requireJs('Lib/leaflet-draw-0.4.2/Control.Draw.js');
         $this->requireJs('Lib/leaflet-draw-0.4.2/Leaflet.draw.js');
@@ -90,7 +93,7 @@ class MapBox extends Component
         $this->requireJs('Lib/leaflet-draw-0.4.2/edit/handler/EditToolbar.Delete.js');
     }
 
-	public function __build_extra__()
+	public function preBuild()
 	{
 
         /*foreach($this->att as $k => $v) {
@@ -105,11 +108,11 @@ class MapBox extends Component
 		}
         $coordinateStart = $res[0]['lat'].','.$res[0]['lng'];
         $coordinateStart .= isset($res[0]['ico']) ? ','.$res[0]['ico'] : '';
-		$this->map->att('coostart', $coordinateStart);
+		$this->map->attribute('coostart', $coordinateStart);
 		if (empty($_REQUEST[$this->id.'_center'])) {
 			$_REQUEST[$this->id.'_center'] = $res[0]['lat'].','.$res[0]['lng'];
 		}
-        $this->map->att('data-datagrid-parent', json_encode($this->dataGridParent));
+        $this->map->attribute('data-datagrid-parent', json_encode($this->dataGridParent));
 	}
 
     public function setGridParent($gridId, $refreshOnMove = true)

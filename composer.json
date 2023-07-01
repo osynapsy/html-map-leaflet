@@ -1,6 +1,6 @@
 {
     "name": "osynapsy/osynapsy-html-ocl-map-leaflet",
-    "version": "0.5",
+    "version": "0.6",
     "homepage": "http://www.osynapsy.net/html-ocl-map-leaflet",
     "type": "library",
     "description": "Osynapsy ocl map leaflet component",
@@ -15,7 +15,7 @@
     ],
     "require": {
         "php" : ">=7.2.0",
-        "osynapsy/osynapsy-html-ocl" : "@stable"
+        "osynapsy/osynapsy-html2" : "@stable"
     },
     "autoload" : {
         "psr-4": {
