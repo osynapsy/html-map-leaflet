@@ -18,8 +18,8 @@ class LeafletMapBox
         this.datasets = {};
         this.autocenter = true;
 
-        if (mapBox) {
-            this.initMapBox(mapBox);
+        if (mapBox) {            
+            this.initMapBox(mapBox);        
         }
     }
 
@@ -33,30 +33,40 @@ class LeafletMapBox
         this.mapBox = mapBox;
         this.mapId = mapBox.getAttribute('id');
 
-        let start = mapBox.getAttribute('coostart').split(',');
-        let mapCenter = this.getMapBoxProperty(mapBox, 'center', mapBox.getAttribute('coostart')).split(',');
-        let zoomLevel = this.getMapBoxProperty(mapBox, 'zoom', 10);        
-
+        let start = JSON.parse(mapBox.getAttribute('data-center'));
+        let mapCenter = this.getMapBoxProperty(mapBox, 'center', start.coordinates);
+        let zoomLevel = this.getMapBoxProperty(mapBox, 'zoom', mapBox.getAttribute('zoomLevel') ?? 10);        
+        // Se mapCenter è una stringa, la converto in array di numeri
+        if (typeof mapCenter === 'string') {
+            mapCenter = mapCenter.split(',').map(Number);
+        }
         this.mapBoxFactory(mapBox, this.mapId, mapCenter, zoomLevel);                        
         this.assocDatagridsToMapBox(mapBox);
         mapBox.setVertex();
         if (!Osynapsy.isEmpty(mapBox.getAttribute('dataDrawPlugin'))) {
             this.enableDrawPlugin(mapBox.map);
         }        
-        this.addMarker(mapBox.map, [start[0], start[1]], {'awesoneIcon' : 2 in start ? start[2] : 'map-marker'}); 
+        this.addMarker(mapBox.map, 'center', start.coordinates, {
+            'awesomeIcon' : start.icon.id || 'map-marker', 
+            'iconColor' : start.icon.color || 'blue', 
+            'iconSize' : start.icon.size || 'fa-2x',
+            'popup' : start.popup || ''
+        }); 
     }
 
     mapBoxFactory(mapBox, id, center, zlevel)
     {
+        console.log(id, center, zlevel);
         mapBox.map = L.map(id).setView(center, zlevel);
         mapBox.id = id;
         mapBox.map.box = mapBox;
         mapBox.datagrids = [];
-        mapBox.layers = [];
+        mapBox.layers = {};
         mapBox.markers = [];
         mapBox.setVertex = this.setVertex.bind(mapBox);        
         mapBox.addMarkersFromDatagrids = this.addMarkersFromDatagrids.bind(mapBox);
         mapBox.addMarker = this.addMarker;
+        mapBox.removeLayer = this.removeLayer;
         mapBox.map.addEventListener('moveend', function(e) {
             this.autocenter = false;
             this.box.setVertex();
@@ -70,7 +80,13 @@ class LeafletMapBox
     assocDatagridsToMapBox(mapBox)
     {
         document.querySelectorAll('div[data-mapgrid=' + mapBox.getAttribute('id') +']').forEach(function(datagrid){
-            mapBox.datagrids.push(datagrid.getAttribute('id'));
+            let datagridId = datagrid.getAttribute('id');
+            mapBox.datagrids.push(datagridId);
+            document.addEventListener('afterRefresh', e => {                
+                if (e.detail.componentId === datagridId) {
+                   mapBox.addMarkersFromDatagrids();
+                }
+            });            
         });
     }
 
@@ -80,6 +96,16 @@ class LeafletMapBox
         let propertyEl = document.querySelector(propertyId);
         let propertyValue = propertyEl ? propertyEl.value : null;
         return Osynapsy.isEmpty(propertyValue) ? defaultValue : propertyValue;
+    }
+
+    removeLayer(map, layerId)
+    {
+        if (map.box.layers.hasOwnProperty(layerId)) {
+            let layer = map.box.layers[layerId];
+            map.removeLayer(layer);
+            delete map.box.layers[layerId];
+            console.log('Layer '+ layerId + ' eliminato');
+        }
     }
 
     setVertex()
@@ -95,31 +121,36 @@ class LeafletMapBox
         document.getElementById(mapId+'_center').value = this.map.getCenter().toString().replace('LatLng(','').replace(')','');
         document.getElementById(mapId+'_cnt_lat').value = (sw.lat + ne.lat) / 2;
         document.getElementById(mapId+'_cnt_lng').value = (sw.lng + ne.lng) / 2;
+        document.getElementById(mapId+'_zoom').value = this.map.getZoom();
         Osynapsy.refreshComponents(this.datagrids, () => {this.addMarkersFromDatagrids(); });
     }
 
     addMarkersFromDatagrids()
     {
         let self = this;
-        this.datagrids.forEach(did => {
-            let dg = document.getElementById(did);
+        this.datagrids.forEach(datagridId => {            
+            let dg = document.getElementById(datagridId);
+            self.removeLayer(self.map, datagridId);
             dg.querySelectorAll('div.row').forEach(elm => {
                 let mrk = elm.getAttribute('marker');
-                let popup = elm.firstElementChild.innerHTML;
+                let popup = Array.from(elm.querySelectorAll('.popup')).map(el => el.innerHTML).join('');
                 if (mrk) {
                     let dat = mrk.split(',');
-                    self.addMarker(self.map, [dat[0], dat[1]], {'awesomeIcon' : dat[2], 'popup' : popup});
+                    self.addMarker(self.map, datagridId, [dat[0], dat[1]], {'awesomeIcon' : dat[2], 'popup' : popup, 'markerId' : dat[3] ?? null});
                 }
             });
         });
     }
 
-    addMarker(map, coords, options = {})
+    addMarker(map, layerId, coords, options = {})
     {        
+        if (!map.box.layers.hasOwnProperty(layerId)) {
+            map.box.layers[layerId] = L.layerGroup().addTo(map);
+        }
+        let layer = map.box.layers[layerId];
         if (!map.box.markerlist) {
             map.box.markerlist = [];
-        }
-
+        }        
         // controllo se le coordinate sono già presenti
         let exists = map.box.markerlist.some(m => {
             let ll = m.getLatLng();
@@ -129,18 +160,10 @@ class LeafletMapBox
         if (exists) {
             console.log("Marker già presente in queste coordinate:", coords);
             return null; // esco senza aggiungere
-        }
-        let markerOptions = {};
-        if (options.iconUrl) {
-            markerOptions.icon = L.icon({
-                iconUrl: options.iconUrl,
-                iconSize: options.iconSize || [25, 41],
-                iconAnchor: options.iconAnchor || [12, 41],
-                popupAnchor: options.popupAnchor || [0, -41]
-            });
-        }
+        }        
+        let markerOptions = {};        
         if (options.awesomeIcon) {
-            let color = options.iconColor || "red";   // colore del pin
+            let color = options.iconColor || "green";   // colore del pin
             let size  = options.iconSize || "fa-3x";  // es. fa-sm, fa-lg, fa-2x, ecc.
             let icon  = options.awesomeIcon;          // es. "fa-solid fa-coffee"
             markerOptions.icon = L.divIcon({
@@ -150,14 +173,27 @@ class LeafletMapBox
                 iconAnchor: options.iconAnchor || [15, 42],
                 popupAnchor: options.popupAnchor || [0, -42]
             });
+        } else if (options.iconUrl) {
+            markerOptions.icon = L.icon({
+                iconUrl: options.iconUrl,
+                iconSize: options.iconSize || [25, 41],
+                iconAnchor: options.iconAnchor || [12, 41],
+                popupAnchor: options.popupAnchor || [0, -41]
+            });            
         }        
         if (options.draggable) {
             markerOptions.draggable = true;
         }
-        let marker = L.marker(coords, markerOptions).addTo(map);
+        let marker = L.marker(coords, markerOptions).addTo(layer);        
         if (options.popup) {
             marker.bindPopup(options.popup);
-        }       
+        }
+        if (options.markerId) {
+            let row = document.getElementById(options.markerId);
+            if (row) {
+                row.addEventListener("click", () => marker.openPopup());
+            }
+        }
         map.box.markerlist.push(marker);
         return marker;
     }
