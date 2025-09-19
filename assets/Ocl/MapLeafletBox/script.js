@@ -45,13 +45,14 @@ class LeafletMapBox
         mapBox.setVertex();
         if (!Osynapsy.isEmpty(mapBox.getAttribute('dataDrawPlugin'))) {
             this.enableDrawPlugin(mapBox.map);
-        }        
-        this.addMarker(mapBox.map, 'center', start.coordinates, {
+        }
+        start.options = {
             'awesomeIcon' : start.icon.id || 'map-marker', 
             'iconColor' : start.icon.color || 'blue', 
             'iconSize' : start.icon.size || 'fa-2x',
             'popup' : start.popup || ''
-        }); 
+        };
+        this.addMarker(mapBox.map, 'center', start); 
     }
 
     mapBoxFactory(mapBox, id, center, zlevel)
@@ -131,18 +132,17 @@ class LeafletMapBox
         this.datagrids.forEach(datagridId => {            
             let dg = document.getElementById(datagridId);
             self.removeLayer(self.map, datagridId);
-            dg.querySelectorAll('div.row').forEach(elm => {
-                let mrk = elm.getAttribute('marker');
-                let popup = Array.from(elm.querySelectorAll('.popup')).map(el => el.innerHTML).join('');
-                if (mrk) {
-                    let dat = mrk.split(',');
-                    self.addMarker(self.map, datagridId, [dat[0], dat[1]], {'awesomeIcon' : dat[2], 'popup' : popup, 'markerId' : dat[3] ?? null});
+            dg.querySelectorAll('div.row').forEach(elm => {                
+                if (elm.getAttribute('marker')) {
+                    let marker = JSON.parse(elm.getAttribute('marker'));
+                    marker.popup = Array.from(elm.querySelectorAll('.popup')).map(el => el.innerHTML).join('');                    
+                    self.addMarker(self.map, datagridId, marker);       
                 }
             });
         });
     }
 
-    addMarker(map, layerId, coords, options = {})
+    addMarker(map, layerId, rawMarker)
     {        
         if (!map.box.layers.hasOwnProperty(layerId)) {
             map.box.layers[layerId] = L.layerGroup().addTo(map);
@@ -154,42 +154,42 @@ class LeafletMapBox
         // controllo se le coordinate sono già presenti
         let exists = map.box.markerlist.some(m => {
             let ll = m.getLatLng();
-            return ll.lat === coords[0] && ll.lng === coords[1];
+            return ll.lat === rawMarker.coordinates[0] && ll.lng === rawMarker.coordinates[1];
         });
 
         if (exists) {
-            console.log("Marker già presente in queste coordinate:", coords);
+            console.log("Marker già presente in queste coordinate:", rawMarker.coordinates);
             return null; // esco senza aggiungere
         }        
         let markerOptions = {};        
-        if (options.awesomeIcon) {
-            let color = options.iconColor || "green";   // colore del pin
-            let size  = options.iconSize || "fa-3x";  // es. fa-sm, fa-lg, fa-2x, ecc.
-            let icon  = options.awesomeIcon;          // es. "fa-solid fa-coffee"
+        if (rawMarker.options.awesomeIcon) {
+            let color = rawMarker.options.iconColor || "green";   // colore del pin
+            let size  = rawMarker.options.iconSize || "fa-3x";  // es. fa-sm, fa-lg, fa-2x, ecc.
+            let icon  = rawMarker.options.awesomeIcon;          // es. "fa-solid fa-coffee"
             markerOptions.icon = L.divIcon({
                 html: `<i class="fa fa-${icon} ${size}" style="color:${color}"></i>`,
                 className: 'custom-fa-marker',
-                iconSize: options.divIconSize || [30, 42],
-                iconAnchor: options.iconAnchor || [15, 42],
-                popupAnchor: options.popupAnchor || [0, -42]
+                iconSize: rawMarker.options.divIconSize || [30, 42],
+                iconAnchor: rawMarker.options.iconAnchor || [15, 42],
+                popupAnchor: rawMarker.options.popupAnchor || [0, -42]
             });
-        } else if (options.iconUrl) {
+        } else if (rawMarker.options.iconUrl) {
             markerOptions.icon = L.icon({
-                iconUrl: options.iconUrl,
-                iconSize: options.iconSize || [25, 41],
-                iconAnchor: options.iconAnchor || [12, 41],
-                popupAnchor: options.popupAnchor || [0, -41]
+                iconUrl: rawMarker.options.iconUrl,
+                iconSize: rawMarker.options.iconSize || [25, 41],
+                iconAnchor: rawMarker.options.iconAnchor || [12, 41],
+                popupAnchor: rawMarker.options.popupAnchor || [0, -41]
             });            
         }        
-        if (options.draggable) {
+        if (rawMarker.options.draggable) {
             markerOptions.draggable = true;
         }
-        let marker = L.marker(coords, markerOptions).addTo(layer);        
-        if (options.popup) {
-            marker.bindPopup(options.popup);
+        let marker = L.marker(rawMarker.coordinates, markerOptions).addTo(layer);        
+        if (rawMarker.popup) {
+            marker.bindPopup(rawMarker.popup);
         }
-        if (options.markerId) {
-            let row = document.getElementById(options.markerId);
+        if (rawMarker.options.markerId) {
+            let row = document.getElementById(rawMarker.options.markerId);
             if (row) {
                 row.addEventListener("click", () => marker.openPopup());
             }
