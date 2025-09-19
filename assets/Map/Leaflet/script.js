@@ -45,13 +45,7 @@ class LeafletMapBox
         mapBox.setVertex();
         if (!Osynapsy.isEmpty(mapBox.getAttribute('dataDrawPlugin'))) {
             this.enableDrawPlugin(mapBox.map);
-        }
-        start.options = {
-            'awesomeIcon' : start.icon.id || 'map-marker', 
-            'iconColor' : start.icon.color || 'blue', 
-            'iconSize' : start.icon.size || 'fa-2x',
-            'popup' : start.popup || ''
-        };
+        }        
         this.addMarker(mapBox.map, 'center', start); 
     }
 

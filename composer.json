@@ -1,25 +1,25 @@
 {
-    "name": "osynapsy/osynapsy-html-ocl-map-leaflet",
+    "name": "osynapsy/html-map-leaflet",
     "version": "0.6",
-    "homepage": "http://www.osynapsy.net/html-ocl-map-leaflet",
+    "homepage": "http://www.osynapsy.net/html-map-leaflet",
     "type": "library",
-    "description": "Osynapsy ocl map leaflet component",
+    "description": "Osynapsy Leaflet map component",
     "keywords": ["Osynapsy", "Map component"],
     "license": "MIT",
     "authors": [
         {
             "name": "Pietro Celeste",
             "email": "p.celeste@osynapsy.net",
-            "homepage": "https://github.com/osynapsy/osynapsy-html-ocl-map-leaflet/wiki"
+            "homepage": "https://github.com/osynapsy/html-map-leaflet/wiki"
         }
     ],
     "require": {
-        "php" : ">=7.2.0",
+        "php" : ">=8.0.0",
         "osynapsy/osynapsy-html2" : "@stable"
     },
     "autoload" : {
         "psr-4": {
-            "Osynapsy\\Ocl\\Map\\Leaflet\\": "src/"
+            "Osynapsy\\Map\\Leaflet\\": "src/"
         }
     }
 }
