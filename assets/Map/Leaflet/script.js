@@ -10,143 +10,80 @@
 
 class LeafletMapBox
 {
-    constructor(mapBox) 
+    datagrids = [];
+    layers = {};    
+    markers = [];
+    polylinelist = {};
+    autocenter = false;
+    
+    constructor(box) 
+    {
+        if (!box.classList.contains('osy-leaflet-mapbox')) {
+            throw new Error('Element isn\'t mapgrid-leaflet element');
+        }
+        let containerId = box.getAttribute('id'); 
+        let start = JSON.parse(box.getAttribute('data-center')); 
+        this.map = this.mapFactory(
+            containerId,
+            this.getMapBoxProperty(box, 'center', start.coordinates),
+            this.getMapBoxProperty(box, 'zoom', box.getAttribute('zoomLevel') ?? 10)
+        );
+        this.assocDatagridsToMapBox(containerId);
+        this.addMarker(this.map, this.getLayer('center'), start); 
+        this.setVertex(containerId);        
+    }
+    
+    mapFactory(containerId, center, zoomlevel)
     {        
-        this.markerlist = {};
-        this.layermarker = {};
-        this.polylinelist = {};
-        this.datasets = {};
-        this.autocenter = true;
-
-        if (mapBox) {            
-            this.initMapBox(mapBox);        
-        }
-    }
-
-    static initAll()
-    {
-        document.querySelectorAll('.osy-mapgrid-leaflet').forEach(el => new LeafletMapBox(el));
-    }
-
-    initMapBox(mapBox)
-    {
-        this.mapBox = mapBox;
-        this.mapId = mapBox.getAttribute('id');
-
-        let start = JSON.parse(mapBox.getAttribute('data-center'));
-        let mapCenter = this.getMapBoxProperty(mapBox, 'center', start.coordinates);
-        let zoomLevel = this.getMapBoxProperty(mapBox, 'zoom', mapBox.getAttribute('zoomLevel') ?? 10);        
-        // Se mapCenter è una stringa, la converto in array di numeri
-        if (typeof mapCenter === 'string') {
-            mapCenter = mapCenter.split(',').map(Number);
-        }
-        this.mapBoxFactory(mapBox, this.mapId, mapCenter, zoomLevel);                        
-        this.assocDatagridsToMapBox(mapBox);
-        mapBox.setVertex();
-        if (!Osynapsy.isEmpty(mapBox.getAttribute('dataDrawPlugin'))) {
-            this.enableDrawPlugin(mapBox.map);
-        }        
-        this.addMarker(mapBox.map, 'center', start); 
-    }
-
-    mapBoxFactory(mapBox, id, center, zlevel)
-    {
-        console.log(id, center, zlevel);
-        mapBox.map = L.map(id).setView(center, zlevel);
-        mapBox.id = id;
-        mapBox.map.box = mapBox;
-        mapBox.datagrids = [];
-        mapBox.layers = {};
-        mapBox.markers = [];
-        mapBox.setVertex = this.setVertex.bind(mapBox);        
-        mapBox.addMarkersFromDatagrids = this.addMarkersFromDatagrids.bind(mapBox);
-        mapBox.addMarker = this.addMarker;
-        mapBox.removeLayer = this.removeLayer;
-        mapBox.map.addEventListener('moveend', function(e) {
-            this.autocenter = false;
-            this.box.setVertex();
+        let self = this;
+        let map = L.map(containerId).setView(
+            typeof center === 'string' ?  center.split(',').map(Number) : center,
+            zoomlevel
+        );        
+        map.addEventListener('moveend', (e) => {            
+            self.autocenter = false;
+            self.setVertex(containerId);
         });
-
         L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', { 
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors' 
-        }).addTo(mapBox.map);
+        }).addTo(map);
+        return map;
     }
-
-    assocDatagridsToMapBox(mapBox)
+    
+    assocDatagridsToMapBox(containerId)
     {
-        document.querySelectorAll('div[data-mapgrid=' + mapBox.getAttribute('id') +']').forEach(function(datagrid){
+        let self = this;
+        document.querySelectorAll('div[data-mapgrid=' + containerId +']').forEach((datagrid) => {
             let datagridId = datagrid.getAttribute('id');
-            mapBox.datagrids.push(datagridId);
+            self.datagrids.push(datagridId);
             document.addEventListener('afterRefresh', e => {                
                 if (e.detail.componentId === datagridId) {
-                   mapBox.addMarkersFromDatagrids();
+                   self.addMarkersFromDatagrids();
                 }
             });            
         });
     }
-
-    getMapBoxProperty(mapBox, property, defaultValue = null)
-    {
-        let propertyId = '#' + mapBox.getAttribute('id') + '_' + property;
-        let propertyEl = document.querySelector(propertyId);
-        let propertyValue = propertyEl ? propertyEl.value : null;
-        return Osynapsy.isEmpty(propertyValue) ? defaultValue : propertyValue;
-    }
-
-    removeLayer(map, layerId)
-    {
-        if (map.box.layers.hasOwnProperty(layerId)) {
-            let layer = map.box.layers[layerId];
-            map.removeLayer(layer);
-            delete map.box.layers[layerId];
-            console.log('Layer '+ layerId + ' eliminato');
-        }
-    }
-
-    setVertex()
-    {
-        let mapId = this.getAttribute('id');
-        let bounds = this.map.getBounds();
-        let ne = bounds.getNorthEast();
-        let sw = bounds.getSouthWest();
-        document.getElementById(mapId+'_ne_lat').value = ne.lat;
-        document.getElementById(mapId+'_ne_lng').value = ne.lng;
-        document.getElementById(mapId+'_sw_lat').value = sw.lat;
-        document.getElementById(mapId+'_sw_lng').value = sw.lng;
-        document.getElementById(mapId+'_center').value = this.map.getCenter().toString().replace('LatLng(','').replace(')','');
-        document.getElementById(mapId+'_cnt_lat').value = (sw.lat + ne.lat) / 2;
-        document.getElementById(mapId+'_cnt_lng').value = (sw.lng + ne.lng) / 2;
-        document.getElementById(mapId+'_zoom').value = this.map.getZoom();
-        Osynapsy.refreshComponents(this.datagrids, () => {this.addMarkersFromDatagrids(); });
-    }
-
+    
     addMarkersFromDatagrids()
     {
-        let self = this;
+        let self = this;        
         this.datagrids.forEach(datagridId => {            
             let dg = document.getElementById(datagridId);
-            self.removeLayer(self.map, datagridId);
+            self.removeLayer(datagridId);
             dg.querySelectorAll('div.row').forEach(elm => {                
-                if (elm.getAttribute('marker')) {
+                if (elm.getAttribute('marker')) {                    
                     let marker = JSON.parse(elm.getAttribute('marker'));
                     marker.popup = Array.from(elm.querySelectorAll('.popup')).map(el => el.innerHTML).join('');                    
-                    self.addMarker(self.map, datagridId, marker);       
+                    self.markers.push(self.addMarker(self.map, this.getLayer(datagridId), marker));
                 }
             });
         });
     }
 
-    addMarker(map, layerId, rawMarker)
+    addMarker(map, layer, rawMarker)
     {        
-        if (!map.box.layers.hasOwnProperty(layerId)) {
-            map.box.layers[layerId] = L.layerGroup().addTo(map);
-        }
-        let layer = map.box.layers[layerId];
-        if (!map.box.markerlist) {
-            map.box.markerlist = [];
-        }        
         // controllo se le coordinate sono già presenti
-        let exists = map.box.markerlist.some(m => {
+        let exists = this.markers.some(m => {
             let ll = m.getLatLng();
             return ll.lat === rawMarker.coordinates[0] && ll.lng === rawMarker.coordinates[1];
         });
@@ -187,11 +124,58 @@ class LeafletMapBox
             if (row) {
                 row.addEventListener("click", () => marker.openPopup());
             }
-        }
-        map.box.markerlist.push(marker);
+        }       
         return marker;
     }
 
+    getLayer(layerId)
+    {
+        if (!this.layers.hasOwnProperty(layerId)) {
+            this.layers[layerId] = L.layerGroup().addTo(this.map);
+        }
+        return this.layers[layerId];
+    }
+
+    removeLayer(layerId)
+    {        
+        if (this.layers.hasOwnProperty(layerId)) {            
+            this.map.removeLayer(this.layers[layerId]);
+            delete this.layers[layerId];
+            console.log('Layer '+ layerId + ' eliminato');
+        }
+    }
+
+    setVertex(mapId)
+    {        
+        let self = this;
+        let bounds = this.map.getBounds();
+        let ne = bounds.getNorthEast();
+        let sw = bounds.getSouthWest();
+        console.log(this.datagrids);
+        document.getElementById(mapId+'_ne_lat').value = ne.lat;
+        document.getElementById(mapId+'_ne_lng').value = ne.lng;
+        document.getElementById(mapId+'_sw_lat').value = sw.lat;
+        document.getElementById(mapId+'_sw_lng').value = sw.lng;
+        document.getElementById(mapId+'_center').value = this.map.getCenter().toString().replace('LatLng(','').replace(')','');
+        document.getElementById(mapId+'_cnt_lat').value = (sw.lat + ne.lat) / 2;
+        document.getElementById(mapId+'_cnt_lng').value = (sw.lng + ne.lng) / 2;
+        document.getElementById(mapId+'_zoom').value = this.map.getZoom();        
+        Osynapsy.refreshComponents(this.datagrids, () => { self.addMarkersFromDatagrids(); });
+    }
+    
+    getMapBoxProperty(mapBox, property, defaultValue = null)
+    {
+        let propertyId = '#' + mapBox.getAttribute('id') + '_' + property;
+        let propertyEl = document.querySelector(propertyId);
+        let propertyValue = propertyEl ? propertyEl.value : null;
+        return Osynapsy.isEmpty(propertyValue) ? defaultValue : propertyValue;
+    }
+    
+    static initAll()
+    {
+        document.querySelectorAll('.osy-leaflet-mapbox').forEach(el => new LeafletMapBox(el));
+    }
+    
     enableDrawPlugin(map)
     {
         let LeafIcon = L.Icon.extend({

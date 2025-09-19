@@ -34,7 +34,7 @@ class MapBox extends AbstractComponent
 
 	public function __construct($name, $draw = true, $routing = true)
 	{
-            parent::__construct('dummy',$name);
+            parent::__construct('dummy', $name);
             $this->map = $this->add($this->mapBoxFactory($name));
             $this->requireCss('Lib/leaflet-1.9.4/leaflet.css');
             $this->requireJs('Lib/leaflet-1.9.4/leaflet.js');
@@ -58,7 +58,7 @@ class MapBox extends AbstractComponent
 
     protected function mapBoxFactory($id)
     {
-        $mapBox = new Tag('div', $id, 'osy-mapgrid osy-mapgrid-leaflet');
+        $mapBox = new Tag('div', $id, 'osy-leaflet-mapbox');
         $mapBox->attribute('style', 'width: 100%; min-height: 600px;');
         return $mapBox;
     }
