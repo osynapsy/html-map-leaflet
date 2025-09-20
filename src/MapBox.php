@@ -46,14 +46,14 @@ class MapBox extends AbstractComponent
                 $this->includeRoutingPlugin();
             }
             $this->requireJs('Map/Leaflet/script.js');
-            $this->add(new InputHidden($this->id.'_ne_lat'));
-            $this->add(new InputHidden($this->id.'_ne_lng'));
-            $this->add(new InputHidden($this->id.'_sw_lat'));
-            $this->add(new InputHidden($this->id.'_sw_lng'));
-            $this->add(new InputHidden($this->id.'_cnt_lat'));
-            $this->add(new InputHidden($this->id.'_cnt_lng'));
-            $this->add(new InputHidden($this->id.'_center'));
-            $this->add(new InputHidden($this->id.'_zoom'));
+            $this->add(new InputHidden($this->id.'_ne_lat'))->addClass('map-leaflet-field');
+            $this->add(new InputHidden($this->id.'_ne_lng'))->addClass('map-leaflet-field');
+            $this->add(new InputHidden($this->id.'_sw_lat'))->addClass('map-leaflet-field');
+            $this->add(new InputHidden($this->id.'_sw_lng'))->addClass('map-leaflet-field');
+            $this->add(new InputHidden($this->id.'_cnt_lat'))->addClass('map-leaflet-field');
+            $this->add(new InputHidden($this->id.'_cnt_lng'))->addClass('map-leaflet-field');
+            $this->add(new InputHidden($this->id.'_center'))->addClass('map-leaflet-field');
+            $this->add(new InputHidden($this->id.'_zoom'))->addClass('map-leaflet-field');
 	}
 
     protected function mapBoxFactory($id)
