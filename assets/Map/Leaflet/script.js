@@ -8,6 +8,8 @@
  * file that was distributed with this source code.
  */
 
+var LeafletMapList = {};
+
 class LeafletMapBox
 {
     datagrids = [];
@@ -173,7 +175,7 @@ class LeafletMapBox
     
     static initAll()
     {
-        document.querySelectorAll('.osy-leaflet-mapbox').forEach(el => new LeafletMapBox(el));
+        document.querySelectorAll('.osy-leaflet-mapbox').forEach(el => LeafletMapList[el.getAttribute('id')] = new LeafletMapBox(el));
     }
     
     enableDrawPlugin(map)
